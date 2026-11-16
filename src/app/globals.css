@@ -172,9 +172,8 @@ button { font-family: inherit; }
   -webkit-backdrop-filter: blur(var(--jv-glass-blur)) saturate(140%);
   border: 1px solid var(--jv-glass-edge); border-radius: var(--radius);
   box-shadow: var(--jv-glass-shadow); padding: 18px 20px; margin-bottom: 12px;
-  transition: transform .25s var(--ease-expo), box-shadow .25s var(--ease-expo);
+  transition: box-shadow .25s var(--ease-expo);
 }
-.panel:hover { transform: translateY(-3px); }
 
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .panel-head h2 {
