@@ -3,6 +3,11 @@
   --ease-hud:  cubic-bezier(0.22, 1, 0.36, 1);
   --radius: 18px;
   --radius-sm: 14px;
+
+  /* Original artifact's plain system-font stack — no webfonts loaded */
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 html[data-theme="dark"] {
@@ -23,6 +28,12 @@ html[data-theme="dark"] {
   --jv-glow:       0 0 14px rgba(41,211,238,0.40);
   --jv-glow-orange:0 0 14px rgba(255,146,69,0.45);
   --jv-glow-red:   0 0 14px rgba(255,93,93,0.4);
+
+  /* GlassCard-only — heavier transparency than --jv-panel (nav/buttons keep --jv-panel) */
+  --jv-glass-bg:     rgba(18, 28, 46, 0.24);
+  --jv-glass-edge:   rgba(125, 244, 255, 0.22);
+  --jv-glass-blur:   28px;
+  --jv-glass-shadow: 0 18px 46px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
 
   /* aliases so charts.tsx renders correctly unmodified */
   --ring-track: var(--jv-panel-edge);
@@ -64,6 +75,12 @@ html[data-theme="light"] {
   --jv-glow-orange:0 0 0 rgba(0,0,0,0);
   --jv-glow-red:   0 0 0 rgba(0,0,0,0);
 
+  /* GlassCard-only — heavier transparency than --jv-panel (nav/buttons keep --jv-panel) */
+  --jv-glass-bg:     rgba(255, 255, 255, 0.30);
+  --jv-glass-edge:   rgba(255, 255, 255, 0.75);
+  --jv-glass-blur:   28px;
+  --jv-glass-shadow: 0 18px 46px rgba(31,45,61,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
+
   --ring-track: var(--jv-panel-edge);
   --accent: var(--jv-cyan);
   --accent-deep: var(--jv-cyan-bright);
@@ -87,7 +104,7 @@ html[data-theme="light"] {
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: var(--font-ui), "Rajdhani", system-ui, sans-serif;
+  font-family: var(--font-ui);
   background: var(--jv-bg);
   color: var(--jv-text);
   -webkit-font-smoothing: antialiased;
@@ -97,8 +114,8 @@ body {
 button { font-family: inherit; }
 ::selection { background: rgba(41,211,238,0.3); }
 
-.font-display { font-family: var(--font-display), "Orbitron", sans-serif; }
-.font-mono { font-family: var(--font-mono), "Share Tech Mono", monospace; }
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
 
 /* ---------------- frame / scrim ---------------- */
 .hud-frame { position: relative; min-height: 100dvh; color: var(--jv-text); }
@@ -149,9 +166,11 @@ button { font-family: inherit; }
 
 /* ---------------- glass card ---------------- */
 .panel {
-  position: relative; background: var(--jv-panel); backdrop-filter: blur(14px);
-  border: 1px solid var(--jv-panel-edge); border-radius: var(--radius);
-  box-shadow: var(--jv-shadow); padding: 18px 20px; margin-bottom: 12px;
+  position: relative; background: var(--jv-glass-bg);
+  backdrop-filter: blur(var(--jv-glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--jv-glass-blur)) saturate(140%);
+  border: 1px solid var(--jv-glass-edge); border-radius: var(--radius);
+  box-shadow: var(--jv-glass-shadow); padding: 18px 20px; margin-bottom: 12px;
   transition: transform .25s var(--ease-expo), box-shadow .25s var(--ease-expo);
 }
 .panel:hover { transform: translateY(-3px); }

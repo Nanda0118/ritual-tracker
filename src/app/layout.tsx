@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { orbitron, rajdhani, techMono } from "./fonts";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
@@ -33,12 +32,7 @@ const NO_FLASH_SCRIPT = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${orbitron.variable} ${rajdhani.variable} ${techMono.variable}`}
-      data-theme="dark"
-      suppressHydrationWarning
-    >
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>
