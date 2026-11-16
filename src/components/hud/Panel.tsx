@@ -25,7 +25,6 @@ export function Panel({
       variants={reduced ? undefined : cardIn}
       initial={reduced ? false : "hidden"}
       animate={reduced ? false : "show"}
-      whileHover={reduced ? undefined : { y: -4 }}
       className={`panel ${className}`.trim()}
       style={style}
     >
