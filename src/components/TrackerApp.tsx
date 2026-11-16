@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LineChart, MiniCalendar, StepGrid } from "@/components/charts";
+import { BarChart, LineChart, MiniCalendar, StepGrid } from "@/components/charts";
 import { HudFrame } from "@/components/hud/HudFrame";
 import { Panel } from "@/components/hud/Panel";
 import { RadialGauge } from "@/components/hud/RadialGauge";
@@ -481,8 +481,33 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
   /* ---------------- progress figures ---------------- */
   const d14 = lastNDays(14);
   const d7 = lastNDays(7);
+  const d30 = lastNDays(30);
   const readyMinutes = (day: string) =>
     statusOf(day, "ready") === "done" ? elapsedMin(atOf(day, "wake"), atOf(day, "ready")) : null;
+
+  const stepCompletion = catalog
+    .filter((s) => s.kind === "ritual")
+    .map((s) => {
+      const applicable = d30.filter((ds) => countableFor(ds).some((c) => c.step_key === s.step_key));
+      const done = applicable.filter((ds) => statusOf(ds, s.step_key) === "done").length;
+      const pct = applicable.length ? Math.round((done / applicable.length) * 100) : 0;
+      return { label: s.label, pct, done, applicable: applicable.length };
+    })
+    .filter((row) => row.applicable > 0);
+
+  const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekdayPattern = WEEKDAY_LABELS.map((label, wd) => {
+    const dds = d30.filter((ds) => parseDayStr(ds).getDay() === wd);
+    let due = 0;
+    let done = 0;
+    dds.forEach((ds) => {
+      const applicable = countableFor(ds);
+      due += applicable.length;
+      done += applicable.filter((s) => statusOf(ds, s.step_key) === "done").length;
+    });
+    const pct = due ? Math.round((done / due) * 100) : 0;
+    return { label, pct, logged: dds.filter((ds) => countableFor(ds).length > 0).length };
+  });
 
   let streak = 0;
   for (let i = 0; i < 400; i++) {
@@ -813,6 +838,47 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
                       <span className="legend-item">
                         <span className="legend-swatch" style={{ background: "var(--jv-cyan-bright)" }} />
                         Clock time woken
+                      </span>
+                    </div>
+                  </Panel>
+                </div>
+
+                <div className="charts-grid" style={{ marginTop: 12 }}>
+                  <Panel title="Step completion rate" className="chart-card">
+                    <BarChart
+                      labels={stepCompletion.map((r) => r.label)}
+                      values={stepCompletion.map((r) => r.pct)}
+                      color="var(--jv-orange)"
+                      format={(v) => `${Math.round(v)}%`}
+                      detail={(i) => {
+                        const r = stepCompletion[i];
+                        return `${r.label} · ${r.done}/${r.applicable} days · last 30d`;
+                      }}
+                      horizontal
+                    />
+                    <div className="legend-row">
+                      <span className="legend-item">
+                        <span className="legend-swatch" style={{ background: "var(--jv-orange)" }} />
+                        % completed, last 30d
+                      </span>
+                    </div>
+                  </Panel>
+
+                  <Panel title="Weekday pattern" className="chart-card">
+                    <BarChart
+                      labels={weekdayPattern.map((r) => r.label)}
+                      values={weekdayPattern.map((r) => r.pct)}
+                      color="var(--jv-cyan)"
+                      format={(v) => `${Math.round(v)}%`}
+                      detail={(i) => {
+                        const r = weekdayPattern[i];
+                        return `${r.label} · ${r.pct}% · ${r.logged} day(s) logged`;
+                      }}
+                    />
+                    <div className="legend-row">
+                      <span className="legend-item">
+                        <span className="legend-swatch" style={{ background: "var(--jv-cyan)" }} />
+                        Avg completion by weekday, last 30d
                       </span>
                     </div>
                   </Panel>

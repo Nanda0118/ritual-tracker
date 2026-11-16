@@ -218,6 +218,157 @@ export function LineChart({
   );
 }
 
+export function BarChart({
+  labels,
+  values,
+  color = "var(--accent)",
+  format,
+  detail,
+  horizontal = false,
+}: {
+  labels: string[];
+  values: number[];
+  color?: string;
+  format?: (v: number) => string;
+  detail?: (i: number) => string;
+  horizontal?: boolean;
+}) {
+  const { ref, w } = useWidth<HTMLDivElement>();
+  const [tip, setTip] = useState<Tip | null>(null);
+  const [active, setActive] = useState<number | null>(null);
+
+  if (!values.length) {
+    return (
+      <div ref={ref}>
+        <div className="chart-empty">Nothing logged yet</div>
+      </div>
+    );
+  }
+
+  const fmt = format ?? ((v: number) => String(Math.round(v)));
+  const maxV = Math.max(1, ...values);
+
+  if (horizontal) {
+    const rowH = 28;
+    const pad = { t: 4, r: 40, b: 4, l: 118 };
+    const h = pad.t + labels.length * rowH + pad.b;
+    const plotW = w - pad.l - pad.r;
+    return (
+      <div ref={ref}>
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+          {labels.map((label, i) => {
+            const v = values[i] ?? 0;
+            const bw = Math.max(2, (v / maxV) * plotW);
+            const cy = pad.t + i * rowH + rowH / 2;
+            const isActive = active === i;
+            return (
+              <g key={label}>
+                <text x={0} y={cy + 3.5} fontSize={10.5} fill="var(--text-secondary)">
+                  {label}
+                </text>
+                <rect
+                  x={pad.l}
+                  y={cy - 7}
+                  width={plotW}
+                  height={14}
+                  rx={5}
+                  fill="var(--hairline)"
+                />
+                <rect
+                  x={pad.l}
+                  y={cy - 7}
+                  width={bw.toFixed(1)}
+                  height={14}
+                  rx={5}
+                  fill={color}
+                  opacity={isActive ? 1 : 0.85}
+                  style={{ cursor: "pointer", transition: "width .4s var(--ease-expo, ease), opacity .15s" }}
+                  onMouseMove={(e) => {
+                    setActive(i);
+                    setTip({ x: e.clientX, y: e.clientY, html: detail ? detail(i) : `${label} · ${fmt(v)}` });
+                  }}
+                  onMouseLeave={() => {
+                    setActive(null);
+                    setTip(null);
+                  }}
+                />
+                <text x={pad.l + bw + 6} y={cy + 3.5} fontSize={10} fontWeight={600} fill="var(--text-primary)">
+                  {fmt(v)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        <Tooltip tip={tip} />
+      </div>
+    );
+  }
+
+  const h = 160;
+  const pad = { t: 16, r: 8, b: 24, l: 32 };
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+  const gap = 6;
+  const bw = Math.max(4, plotW / values.length - gap);
+  const gridVals = [0, 0.5, 1].map((g) => maxV * g);
+
+  return (
+    <div ref={ref}>
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        {gridVals.map((gv, i) => {
+          const y = pad.t + plotH - (gv / maxV) * plotH;
+          return (
+            <g key={i}>
+              <line x1={pad.l} x2={w - pad.r} y1={y} y2={y} stroke="var(--hairline)" strokeWidth={1} />
+              <text x={2} y={y + 3} fontSize={9} fill="var(--text-muted)">
+                {fmt(gv)}
+              </text>
+            </g>
+          );
+        })}
+        {values.map((v, i) => {
+          const bh = Math.max(2, (v / maxV) * plotH);
+          const x = pad.l + i * (plotW / values.length) + gap / 2;
+          const y = pad.t + plotH - bh;
+          const isActive = active === i;
+          return (
+            <g key={labels[i] ?? i}>
+              <rect
+                x={x.toFixed(1)}
+                y={y.toFixed(1)}
+                width={bw.toFixed(1)}
+                height={bh.toFixed(1)}
+                rx={4}
+                fill={color}
+                opacity={isActive ? 1 : 0.85}
+                style={{ cursor: "pointer", transition: "height .4s var(--ease-expo, ease), y .4s var(--ease-expo, ease), opacity .15s" }}
+                onMouseMove={(e) => {
+                  setActive(i);
+                  setTip({ x: e.clientX, y: e.clientY, html: detail ? detail(i) : `${labels[i]} · ${fmt(v)}` });
+                }}
+                onMouseLeave={() => {
+                  setActive(null);
+                  setTip(null);
+                }}
+              />
+              <text
+                x={(x + bw / 2).toFixed(1)}
+                y={h - 6}
+                fontSize={9}
+                fill="var(--text-muted)"
+                textAnchor="middle"
+              >
+                {labels[i]}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <Tooltip tip={tip} />
+    </div>
+  );
+}
+
 export function StepGrid({
   days,
   rows,
