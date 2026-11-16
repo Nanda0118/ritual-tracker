@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Readout } from "@/components/hud/Readout";
+import { Readout } from "@/components/ui/Readout";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
-const JarvisScene = dynamic(() => import("@/components/three/JarvisScene"), { ssr: false });
+const JarvisBackdrop = dynamic(() => import("@/components/three/JarvisBackdrop"), { ssr: false });
 
 const BOOT_LINES = ["INITIALIZING BUDDY", "LINKING SUPABASE", "SYSTEMS ONLINE"];
 
 export default function LoginPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export default function LoginPage() {
       setBooted(true);
       return;
     }
-    const t = setTimeout(() => setBootLine((n) => n + 1), 480);
+    const t = setTimeout(() => setBootLine((n) => n + 1), 420);
     return () => clearTimeout(t);
   }, [bootLine]);
 
@@ -59,16 +61,10 @@ export default function LoginPage() {
 
   return (
     <div className="hud-frame">
-      <JarvisScene progress={booted ? 1 : bootLine / BOOT_LINES.length} state={booted ? "idle" : "thinking"} />
-      <div className="hud-vignette" />
-      <div className="hud-scanlines" />
+      <JarvisBackdrop theme={theme} />
+      <div className="hud-scrim" />
       <div className="login-wrap">
         <div className="panel login-card">
-          <span className="jv-bracket jv-tl" />
-          <span className="jv-bracket jv-tr" />
-          <span className="jv-bracket jv-bl" />
-          <span className="jv-bracket jv-br" />
-
           <h1>Morning Ritual // Buddy</h1>
 
           {!booted ? (

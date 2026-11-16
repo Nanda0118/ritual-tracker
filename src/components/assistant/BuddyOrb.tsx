@@ -1,16 +1,13 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
-import { useBuddyState } from "./useBuddyState";
-import { Waveform } from "@/components/hud/Waveform";
-import { Readout } from "@/components/hud/Readout";
+import { Waveform } from "@/components/ui/Waveform";
+import { Readout } from "@/components/ui/Readout";
+import type { JarvisState } from "./useJarvisState";
 import type { StepDef, StepStatus } from "@/lib/types";
 
-const JarvisScene = dynamic(() => import("@/components/three/JarvisScene"), { ssr: false });
-
-const STATUS_TEXT: Record<string, string> = {
+const STATUS_TEXT: Record<JarvisState, string> = {
   idle: "STANDING BY",
-  listening: "LISTENING…",
+  listening: "LISTENING",
   thinking: "PROCESSING",
   speaking: "RESPONSE READY",
 };
@@ -56,19 +53,20 @@ function speak(text: string, onEnd: () => void) {
 }
 
 export function BuddyOrb({
-  progress,
+  state,
+  to,
   catalog,
   dayStr,
   tomorrowStr,
   onLog,
 }: {
-  progress: number;
+  state: JarvisState;
+  to: (s: JarvisState) => void;
   catalog: StepDef[];
   dayStr: string;
   tomorrowStr: string | null;
   onLog: (day: string, stepKey: string, status: StepStatus) => void;
 }) {
-  const { state, to } = useBuddyState();
   const [supported, setSupported] = useState<boolean | null>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
 
@@ -147,30 +145,27 @@ export function BuddyOrb({
   }
 
   return (
-    <>
-      <JarvisScene progress={progress} state={state} />
-      <div className="buddy-dock">
-        <Waveform active={state === "speaking"} />
-        <div className="buddy-status">
-          <Readout text={STATUS_TEXT[state]} />
-        </div>
-        {supported === false ? (
-          <div className="buddy-unsupported">Voice not supported in this browser — tap steps instead</div>
-        ) : (
-          <button
-            type="button"
-            className={`buddy-mic${state === "listening" ? " on" : ""}`}
-            onClick={onMicTap}
-            aria-label={state === "listening" ? "Stop listening" : "Talk to Buddy"}
-            disabled={state === "thinking" || state === "speaking"}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M9 22h6" />
-            </svg>
-          </button>
-        )}
+    <div className={`buddy-dock${state === "listening" ? " listening" : ""}`}>
+      <Waveform active={state === "speaking"} />
+      <div className="buddy-status">
+        <Readout text={STATUS_TEXT[state]} />
       </div>
-    </>
+      {supported === false ? (
+        <div className="buddy-unsupported">Voice unsupported here — tap steps instead</div>
+      ) : (
+        <button
+          type="button"
+          className={`buddy-mic${state === "listening" ? " on" : ""}`}
+          onClick={onMicTap}
+          aria-label={state === "listening" ? "Stop listening" : "Talk to Buddy"}
+          disabled={state === "thinking" || state === "speaking"}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M9 22h6" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }

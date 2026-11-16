@@ -8,6 +8,8 @@ import { HudFrame } from "@/components/hud/HudFrame";
 import { Panel } from "@/components/hud/Panel";
 import { RadialGauge } from "@/components/hud/RadialGauge";
 import { BuddyOrb } from "@/components/assistant/BuddyOrb";
+import { useJarvisState } from "@/components/assistant/useJarvisState";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   type Cycle,
   type DayRecord,
@@ -36,6 +38,7 @@ function keyOf(day: string, step: string) {
 export default function TrackerApp({ userEmail, userId }: { userEmail: string; userId: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const { state: buddyState, to: toBuddyState } = useJarvisState();
 
   // computed after mount so server and client markup agree
   const [dayStr, setDayStr] = useState<string | null>(null);
@@ -543,7 +546,14 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
 
   return (
     <HudFrame>
-      <BuddyOrb progress={pct ?? 0} catalog={visibleSteps} dayStr={dayStr} tomorrowStr={tomorrowStr} onLog={logStep} />
+      <BuddyOrb
+        state={buddyState}
+        to={toBuddyState}
+        catalog={visibleSteps}
+        dayStr={dayStr}
+        tomorrowStr={tomorrowStr}
+        onLog={logStep}
+      />
 
       <div className="shell">
         <div className="topbar">
@@ -561,6 +571,7 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
               : "NO NEEM CYCLE SET"}
           </div>
           {unsavedDays.length > 0 && <div id="unsavedBadge">UNSAVED</div>}
+          <ThemeToggle />
           <button className="tb-round" type="button" onClick={signOut} title="Sign out" aria-label="Sign out">
             ⎋
           </button>
@@ -600,7 +611,7 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
                 )}
 
                 <Panel className="hero">
-                  <RadialGauge value={pct} label={pct === null ? "NONE DUE" : "DONE"} />
+                  <RadialGauge value={pct} label={pct === null ? "NONE DUE" : "DONE"} thinking={buddyState === "thinking"} />
                   <div>
                     <div className="hero-label">Steps done</div>
                     <div className="hero-value">
@@ -682,7 +693,7 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
                       className="tick"
                       style={
                         statusOf(tomorrowStr, "soak") === "done"
-                          ? { background: "var(--jv-gold)", borderColor: "var(--jv-gold)" }
+                          ? { background: "var(--jv-orange)", borderColor: "var(--jv-orange)" }
                           : undefined
                       }
                       onClick={() => toggleDone(tomorrowStr, "soak")}
@@ -821,15 +832,15 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
                   />
                   <div className="legend-row">
                     <span className="legend-item">
-                      <span className="legend-swatch" style={{ background: "var(--jv-gold)" }} />
+                      <span className="legend-swatch" style={{ background: "var(--jv-orange)" }} />
                       Done
                     </span>
                     <span className="legend-item">
-                      <span className="legend-swatch" style={{ background: "rgba(255,184,77,0.14)", border: "1px solid var(--jv-gold)" }} />
+                      <span className="legend-swatch" style={{ background: "rgba(255,146,69,0.14)", border: "1px solid var(--jv-orange)" }} />
                       Skipped
                     </span>
                     <span className="legend-item">
-                      <span className="legend-swatch" style={{ background: "rgba(23,42,74,0.3)", border: "1px solid var(--jv-cyan-deep)" }} />
+                      <span className="legend-swatch" style={{ background: "var(--card-2)", border: "1px solid var(--jv-panel-edge)" }} />
                       Not logged
                     </span>
                   </div>
@@ -848,10 +859,10 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
                   <MiniCalendar month={parseDayStr(dayStr)} today={dayStr} levelFor={levelFor} />
                   <div className="cal-legend">
                     <span>None</span>
-                    <i style={{ background: "rgba(23,42,74,0.3)", border: "1px solid var(--jv-cyan-deep)" }} />
+                    <i style={{ background: "var(--card-2)", border: "1px solid var(--jv-panel-edge)" }} />
                     <i style={{ background: "rgba(34,211,238,0.14)" }} />
                     <i style={{ background: "rgba(34,211,238,0.32)" }} />
-                    <i style={{ background: "var(--jv-gold)" }} />
+                    <i style={{ background: "var(--jv-orange)" }} />
                     <span>Full</span>
                   </div>
                 </Panel>

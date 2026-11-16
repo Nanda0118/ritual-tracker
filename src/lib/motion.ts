@@ -1,17 +1,21 @@
 import type { Variants } from "framer-motion";
 
-export const spring = { type: "spring", stiffness: 220, damping: 26, mass: 0.9 } as const;
+export const spring = { type: "spring", stiffness: 210, damping: 26, mass: 0.9 } as const;
 export const expo = [0.16, 1, 0.3, 1] as const;
 
-export const panelIn: Variants = {
-  hidden: { opacity: 0, y: 14, filter: "blur(6px)" },
+export const cardIn: Variants = {
+  hidden: { opacity: 0, y: 12, filter: "blur(4px)" },
   show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: expo } },
 };
 
-export const stagger: Variants = {
+// Back-compat alias for any earlier v1 imports.
+export const panelIn = cardIn;
+
+export const grid: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
 };
+export const stagger = grid;
 
 export function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;

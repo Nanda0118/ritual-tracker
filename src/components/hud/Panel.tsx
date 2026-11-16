@@ -1,7 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import type { ReactNode, CSSProperties } from "react";
-import { panelIn } from "@/lib/motion";
+import { cardIn, prefersReducedMotion } from "@/lib/motion";
 
 export function Panel({
   title,
@@ -16,18 +17,18 @@ export function Panel({
   className?: string;
   style?: CSSProperties;
 }) {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => setReduced(prefersReducedMotion()), []);
+
   return (
     <motion.div
-      variants={panelIn}
-      initial="hidden"
-      animate="show"
+      variants={reduced ? undefined : cardIn}
+      initial={reduced ? false : "hidden"}
+      animate={reduced ? false : "show"}
+      whileHover={reduced ? undefined : { y: -4 }}
       className={`panel ${className}`.trim()}
       style={style}
     >
-      <span className="jv-bracket jv-tl" />
-      <span className="jv-bracket jv-tr" />
-      <span className="jv-bracket jv-bl" />
-      <span className="jv-bracket jv-br" />
       {title && (
         <h3>
           <span>{title}</span>
@@ -38,3 +39,6 @@ export function Panel({
     </motion.div>
   );
 }
+
+// v2 name — same component, exported under the name the skill uses.
+export const GlassCard = Panel;
