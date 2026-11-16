@@ -134,7 +134,7 @@ button { font-family: inherit; }
 .tb-id { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--jv-text-dim); }
 .tb-greet { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--jv-text); font-weight: 600; }
 .tb-pill {
-  flex: 1 1 auto; max-width: 380px; margin: 0 auto; text-align: center;
+  flex: 1 1 auto; min-width: 0; max-width: 380px; margin: 0 auto; text-align: center;
   font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.06em;
   color: var(--jv-text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border: 1px solid var(--jv-panel-edge); background: var(--jv-panel); padding: 7px 14px;
@@ -337,15 +337,25 @@ td.num, th.num { text-align: right; }
 tbody tr:last-child td { border-bottom: none; }
 
 .tabbar {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 40;
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40;
   display: flex; align-items: center; gap: 2px; padding: 5px; background: var(--jv-panel);
   backdrop-filter: blur(14px); border: 1px solid var(--jv-panel-edge); border-radius: 999px; box-shadow: var(--jv-shadow);
+  max-width: calc(100vw - 20px); overflow-x: auto;
 }
-.tabbar button { border: none; background: transparent; color: var(--jv-text-dim); cursor: pointer; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; padding: 9px 16px; border-radius: 999px; }
+.tabbar button { border: none; background: transparent; color: var(--jv-text-dim); cursor: pointer; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; padding: 9px 16px; border-radius: 999px; white-space: nowrap; }
 .tabbar button.active { color: var(--jv-text); background: var(--card-2); font-weight: 600; }
-.tab-plus { width: 34px; height: 34px; padding: 0; margin-left: 4px; font-size: 18px; line-height: 1; border: 1px solid var(--jv-orange); color: var(--jv-orange); }
+.tab-plus { width: 34px; height: 34px; padding: 0; margin-left: 4px; font-size: 18px; line-height: 1; border: 1px solid var(--jv-orange); color: var(--jv-orange); flex: 0 0 auto; }
 @media (max-width: 620px) {
-  .rail { display: none; } .shell { padding: 12px 10px 150px; }
+  .rail { display: none; }
+  .shell { padding: 12px 10px calc(150px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { flex-wrap: wrap; row-gap: 8px; }
+  .tb-pill { order: 3; flex-basis: 100%; max-width: none; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 380px) {
+  .hero-value { font-size: 15px; }
+  .tb-greet { font-size: 11px; }
 }
 
 /* ---------------- login ---------------- */
@@ -369,7 +379,8 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ---------------- assistant dock (compact) ---------------- */
 .buddy-dock {
-  position: fixed; bottom: 86px; left: 50%; transform: translateX(-50%); z-index: 41;
+  position: fixed; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); left: 50%;
+  transform: translateX(-50%); z-index: 41; max-width: calc(100vw - 20px);
   display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px;
   background: var(--jv-panel); border: 1px solid var(--jv-panel-edge); box-shadow: var(--jv-shadow);
   backdrop-filter: blur(14px);

@@ -250,7 +250,10 @@ export function BarChart({
 
   if (horizontal) {
     const rowH = 28;
-    const pad = { t: 4, r: 40, b: 4, l: 118 };
+    const narrow = w < 360;
+    const labelFs = narrow ? 9.5 : 10.5;
+    const pad = { t: 4, r: narrow ? 30 : 40, b: 4, l: narrow ? 78 : 118 };
+    const labelMaxChars = narrow ? 11 : 16;
     const h = pad.t + labels.length * rowH + pad.b;
     const plotW = w - pad.l - pad.r;
     return (
@@ -261,10 +264,12 @@ export function BarChart({
             const bw = Math.max(2, (v / maxV) * plotW);
             const cy = pad.t + i * rowH + rowH / 2;
             const isActive = active === i;
+            const shownLabel =
+              label.length > labelMaxChars ? `${label.slice(0, labelMaxChars - 1)}…` : label;
             return (
               <g key={label}>
-                <text x={0} y={cy + 3.5} fontSize={10.5} fill="var(--text-secondary)">
-                  {label}
+                <text x={0} y={cy + 3.5} fontSize={labelFs} fill="var(--text-secondary)">
+                  {shownLabel}
                 </text>
                 <rect
                   x={pad.l}
@@ -292,7 +297,7 @@ export function BarChart({
                     setTip(null);
                   }}
                 />
-                <text x={pad.l + bw + 6} y={cy + 3.5} fontSize={10} fontWeight={600} fill="var(--text-primary)">
+                <text x={pad.l + bw + 6} y={cy + 3.5} fontSize={narrow ? 9 : 10} fontWeight={600} fill="var(--text-primary)">
                   {fmt(v)}
                 </text>
               </g>
