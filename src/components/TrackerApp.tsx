@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LineChart, MiniCalendar, Ring, StepGrid } from "@/components/charts";
+import { LineChart, MiniCalendar, StepGrid } from "@/components/charts";
+import { HudFrame } from "@/components/hud/HudFrame";
+import { Panel } from "@/components/hud/Panel";
+import { RadialGauge } from "@/components/hud/RadialGauge";
+import { BuddyOrb } from "@/components/assistant/BuddyOrb";
 import {
   type Cycle,
   type DayRecord,
@@ -256,6 +260,15 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
     [statusOf, persist]
   );
 
+  // Non-toggling setter for voice: always lands on the requested status
+  // rather than flipping an already-set step back to pending.
+  const logStep = useCallback(
+    (day: string, step: string, status: StepStatus) => {
+      void persist(day, step, { status, happened_at: new Date().toISOString(), backfilled: false });
+    },
+    [persist]
+  );
+
   const saveReason = useCallback(
     (day: string, step: string, text: string) => {
       const cur = recOf(day, step);
@@ -326,11 +339,13 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
   /* ---------------- loading / empty shells ---------------- */
   if (!dayStr || !now) {
     return (
-      <div className="shell">
-        <div className="canvas" style={{ marginTop: 40 }}>
-          <div className="chart-empty">Loading…</div>
+      <HudFrame>
+        <div className="shell">
+          <div className="canvas" style={{ marginTop: 40 }}>
+            <div className="chart-empty font-mono">BOOTING…</div>
+          </div>
         </div>
-      </div>
+      </HudFrame>
     );
   }
 
@@ -351,7 +366,7 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
   const shownMin = closedMin ?? liveMin;
 
   const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greeting = hour < 12 ? "GOOD MORNING" : hour < 17 ? "GOOD AFTERNOON" : "GOOD EVENING";
   const unsavedDays = Object.keys(unsaved);
 
   /* ---------------- step row ---------------- */
@@ -527,410 +542,388 @@ export default function TrackerApp({ userEmail, userId }: { userEmail: string; u
   };
 
   return (
-    <div className="shell">
-      <div className="topbar">
-        <div className="tb-left">
-          <div className="avatar">{(userEmail[0] ?? "N").toUpperCase()}</div>
-          <div>
-            <div className="greet">{greeting}, Nanda</div>
-            <div className="tb-sub">{fmtDayHuman(parseDayStr(dayStr))}</div>
+    <HudFrame>
+      <BuddyOrb progress={pct ?? 0} catalog={visibleSteps} dayStr={dayStr} tomorrowStr={tomorrowStr} onLog={logStep} />
+
+      <div className="shell">
+        <div className="topbar">
+          <div className="tb-left">
+            <div className="tb-greet">{greeting}, NANDA</div>
+            <div className="tb-id font-mono">{fmtDayHuman(parseDayStr(dayStr))}</div>
           </div>
+          <div className="tb-pill">
+            {cycle && cycleDay !== null
+              ? cycleDay < 1
+                ? `NEEM CYCLE · STARTS ${cycle.start_date}`
+                : cycleDay <= cycle.length_days
+                  ? `NEEM CYCLE · DAY ${cycleDay} OF ${cycle.length_days}`
+                  : `NEEM CYCLE · ${cycleDay - cycle.length_days}D PAST REVIEW`
+              : "NO NEEM CYCLE SET"}
+          </div>
+          {unsavedDays.length > 0 && <div id="unsavedBadge">UNSAVED</div>}
+          <button className="tb-round" type="button" onClick={signOut} title="Sign out" aria-label="Sign out">
+            ⎋
+          </button>
         </div>
-        <div className="tb-pill">
-          {cycle && cycleDay !== null
-            ? cycleDay < 1
-              ? `Neem cycle · starts ${cycle.start_date}`
-              : cycleDay <= cycle.length_days
-                ? `Neem cycle · day ${cycleDay} of ${cycle.length_days}`
-                : `Neem cycle · ${cycleDay - cycle.length_days} days past review`
-            : "No neem cycle set"}
-        </div>
-        {unsavedDays.length > 0 && <div id="unsavedBadge">unsaved</div>}
-        <button className="tb-round" type="button" onClick={signOut} title="Sign out" aria-label="Sign out">
-          ⎋
-        </button>
-      </div>
 
-      <div className="body-row">
-        <nav className="rail" aria-label="Sections">
-          {(["today", "progress", "history"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              className={`rail-btn${tab === t ? " active" : ""}`}
-              onClick={() => setTab(t)}
-              title={t}
-              aria-label={t}
-            >
-              {railIcon(t)}
-            </button>
-          ))}
-        </nav>
+        <div className="body-row">
+          <nav className="rail" aria-label="Sections">
+            {(["today", "progress", "history"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                className={`rail-btn${tab === t ? " active" : ""}`}
+                onClick={() => setTab(t)}
+                title={t}
+                aria-label={t}
+              >
+                {railIcon(t)}
+              </button>
+            ))}
+          </nav>
 
-        <main className="canvas">
-          {loadError && <div className="alert bad">{loadError}</div>}
-          {loading && <div className="chart-empty">Loading…</div>}
+          <main className="canvas">
+            {loadError && <div className="alert bad">{loadError}</div>}
+            {loading && <div className="chart-empty font-mono">LOADING…</div>}
 
-          {!loading && tab === "today" && (
-            <>
-              <div className="panel-head">
-                <h2>Morning ritual</h2>
-                <div className="ph-sub">{fmtDayHuman(parseDayStr(dayStr))}</div>
-              </div>
-
-              {statusOf(dayStr, "soak") === "pending" && hour < 12 && (
-                <div className="alert">
-                  No soak logged for this morning. If the seeds weren&apos;t soaked overnight, give them
-                  20–30 minutes in the water before drinking.
+            {!loading && tab === "today" && (
+              <>
+                <div className="panel-head">
+                  <h2>Morning Ritual</h2>
+                  <div className="ph-sub">{fmtDayHuman(parseDayStr(dayStr))}</div>
                 </div>
-              )}
 
-              <div className="card hero">
-                <Ring
-                  pct={pct}
-                  label={pct === null ? "—" : `${Math.round(pct * 100)}%`}
-                  sub={pct === null ? "none due" : "done"}
-                />
-                <div>
-                  <div className="hero-label">Steps done</div>
-                  <div className="hero-value">
-                    {due.length ? `${doneCount} / ${due.length}` : "No steps due"}
-                    {skipCount ? `  ·  ${skipCount} skipped` : ""}
+                {statusOf(dayStr, "soak") === "pending" && hour < 12 && (
+                  <div className="alert">
+                    NO SOAK LOGGED FOR THIS MORNING. If the seeds weren&apos;t soaked overnight, give them
+                    20–30 minutes in the water before drinking.
                   </div>
-                  <div className="hero-note">
-                    {closedMin !== null
-                      ? closedMin <= TARGET_MIN
-                        ? "Block closed inside the target"
-                        : `Block ran ${closedMin - TARGET_MIN} min over target`
-                      : wakeAt
-                        ? pending.length
-                          ? `Next: ${pending[0].label}`
-                          : "All steps settled"
-                        : "Tap the circle on “Woke up” to start the clock"}
-                  </div>
-                </div>
-                <div className="hero-right">
-                  <div className="hero-label">From wake</div>
-                  <div className={`elapsed${shownMin !== null && shownMin > TARGET_MIN ? " over" : ""}`}>
-                    {shownMin === null ? "—" : `${shownMin} min`}
-                  </div>
-                  <div className="hero-note">target {TARGET_MIN} min</div>
-                </div>
-              </div>
+                )}
 
-              <div className="lists" style={{ marginTop: 12 }}>
-                <div className="card">
-                  <h3>
-                    Pending <span className="count">{pending.length}</span>
-                  </h3>
-                  {pending.length ? (
-                    pending.map((s) => <StepRow key={s.step_key} day={dayStr} s={s} />)
-                  ) : (
-                    <div className="empty-list">Nothing pending — block closed.</div>
-                  )}
-                </div>
-                <div className="card">
-                  <h3>
-                    Completed <span className="count">{completed.length}</span>
-                  </h3>
-                  {completed.length ? (
-                    completed.map((s) => <StepRow key={s.step_key} day={dayStr} s={s} />)
-                  ) : (
-                    <div className="empty-list">Nothing ticked yet. Steps move here as you go.</div>
-                  )}
-                </div>
-              </div>
-
-              {skipped.length > 0 && (
-                <div className="card" style={{ marginTop: 12 }}>
-                  <h3>
-                    Skipped <span className="count">{skipped.length}</span>
-                  </h3>
-                  {skipped.map((s) => (
-                    <StepRow key={s.step_key} day={dayStr} s={s} withReason />
-                  ))}
-                  <div className="reason-hint">
-                    Reasons are optional — leave them blank now and fill them in whenever you&apos;re free.
-                  </div>
-                </div>
-              )}
-
-              {openReasons.length > 0 && (
-                <div className="card" style={{ marginTop: 12 }}>
-                  <h3>
-                    Needs a reason <span className="count">{openReasons.length}</span>
-                  </h3>
-                  {openReasons.slice(0, 20).map(({ day, s }) => (
-                    <div className="or-row" key={keyOf(day, s.step_key)}>
-                      <div className="or-head">
-                        {fmtDayHuman(parseDayStr(day))} · {s.label}
-                      </div>
-                      <input
-                        type="text"
-                        maxLength={200}
-                        placeholder="why — optional"
-                        onBlur={(e) => saveReason(day, s.step_key, e.target.value)}
-                      />
+                <Panel className="hero">
+                  <RadialGauge value={pct} label={pct === null ? "NONE DUE" : "DONE"} />
+                  <div>
+                    <div className="hero-label">Steps done</div>
+                    <div className="hero-value">
+                      {due.length ? `${doneCount} / ${due.length}` : "No steps due"}
+                      {skipCount ? `  ·  ${skipCount} skipped` : ""}
                     </div>
-                  ))}
-                  <div className="reason-hint">
-                    Skips from earlier days with no reason yet. Still optional.
+                    <div className="hero-note font-mono">
+                      {closedMin !== null
+                        ? closedMin <= TARGET_MIN
+                          ? "BLOCK CLOSED INSIDE TARGET"
+                          : `BLOCK RAN ${closedMin - TARGET_MIN} MIN OVER TARGET`
+                        : wakeAt
+                          ? pending.length
+                            ? `NEXT: ${pending[0].label.toUpperCase()}`
+                            : "ALL STEPS SETTLED"
+                          : 'TAP "WOKE UP" TO START THE CLOCK'}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {tomorrowStr && (
-                <div className="card tonight">
-                  <button
-                    type="button"
-                    className="tick"
-                    style={
-                      statusOf(tomorrowStr, "soak") === "done"
-                        ? { background: "var(--accent)", borderColor: "var(--accent)" }
-                        : undefined
-                    }
-                    onClick={() => toggleDone(tomorrowStr, "soak")}
-                    aria-label="Mark tomorrow's soak"
-                  >
-                    {statusOf(tomorrowStr, "soak") === "done" ? "✓" : ""}
-                  </button>
-                  <div className="t-body">
-                    <div className="t-name">Tonight — soak for tomorrow</div>
-                    <div className="t-spec">2 tsp sabja seeds in 1 litre water · leave overnight</div>
+                  <div className="hero-right">
+                    <div className="hero-label">From wake</div>
+                    <div className={`elapsed${shownMin !== null && shownMin > TARGET_MIN ? " over" : ""}`}>
+                      {shownMin === null ? "—" : `${shownMin}m`}
+                    </div>
+                    <div className="hero-note font-mono">target {TARGET_MIN}m</div>
                   </div>
-                  <button className="btn-primary" type="button" onClick={() => toggleDone(tomorrowStr, "soak")}>
-                    {statusOf(tomorrowStr, "soak") === "done" ? "Soaked ✓" : "Mark soaked"}
-                  </button>
-                </div>
-              )}
+                </Panel>
 
-              <div className="card block-ref">
-                <h3>The 25-minute block</h3>
-                <div className="br-row"><div className="br-time">05:00</div><div>Wake</div></div>
-                <div className="br-row"><div className="br-time">~05:02</div><div>Sabja water — drink the full litre</div></div>
-                <div className="br-row"><div className="br-time">~05:08</div><div>Bowel movement</div></div>
-                <div className="br-row"><div className="br-time">~05:18</div><div>Neem leaves, then garlic</div></div>
-                <div className="br-row"><div className="br-time">05:25</div><div>Dressed and ready for training</div></div>
-                <div className="muted" style={{ marginTop: 10 }}>
-                  Inner times are a guide. The only fixed targets are the 05:00 start and the 25-minute finish.
+                <div className="lists" style={{ marginTop: 12 }}>
+                  <Panel title="Pending" sub={<span className="count">{pending.length}</span>}>
+                    {pending.length ? (
+                      pending.map((s) => <StepRow key={s.step_key} day={dayStr} s={s} />)
+                    ) : (
+                      <div className="empty-list">Nothing pending — block closed.</div>
+                    )}
+                  </Panel>
+                  <Panel title="Completed" sub={<span className="count">{completed.length}</span>}>
+                    {completed.length ? (
+                      completed.map((s) => <StepRow key={s.step_key} day={dayStr} s={s} />)
+                    ) : (
+                      <div className="empty-list">Nothing ticked yet. Steps move here as you go.</div>
+                    )}
+                  </Panel>
                 </div>
-              </div>
 
-              <div className="card" style={{ marginTop: 12 }}>
-                <div className="f-label">Quick tag · optional</div>
-                <input
-                  type="text"
-                  maxLength={140}
-                  placeholder="how it went — one line (journaling stays on paper)"
-                  value={noteDraft}
-                  onChange={(e) => {
-                    noteTouched.current = true;
-                    setNoteDraft(e.target.value);
-                  }}
-                />
-                <div className="save-row">
-                  <button className="btn-primary" type="button" onClick={() => void saveNote()}>
-                    Save note
-                  </button>
-                  <span className="save-status">{savedAt ? `Saved ${savedAt}` : ""}</span>
-                </div>
-              </div>
-            </>
-          )}
+                {skipped.length > 0 && (
+                  <Panel title="Skipped" sub={<span className="count">{skipped.length}</span>} style={{ marginTop: 12 }}>
+                    {skipped.map((s) => (
+                      <StepRow key={s.step_key} day={dayStr} s={s} withReason />
+                    ))}
+                    <div className="reason-hint">
+                      Reasons are optional — leave them blank now and fill them in whenever you&apos;re free.
+                    </div>
+                  </Panel>
+                )}
 
-          {!loading && tab === "progress" && (
-            <>
-              <div className="panel-head">
-                <h2>Progress</h2>
-                <div className="ph-sub">Last 14 days</div>
-              </div>
+                {openReasons.length > 0 && (
+                  <Panel title="Needs a reason" sub={<span className="count">{openReasons.length}</span>} style={{ marginTop: 12 }}>
+                    {openReasons.slice(0, 20).map(({ day, s }) => (
+                      <div className="or-row" key={keyOf(day, s.step_key)}>
+                        <div className="or-head">
+                          {fmtDayHuman(parseDayStr(day))} · {s.label}
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={200}
+                          placeholder="why — optional"
+                          onBlur={(e) => saveReason(day, s.step_key, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                    <div className="reason-hint">Skips from earlier days with no reason yet. Still optional.</div>
+                  </Panel>
+                )}
 
-              <div className="stat-grid">
-                <div className="card">
-                  <div className="s-label">Streak</div>
-                  <div className="s-value">{streak}</div>
-                  <div className="s-sub">full ritual days</div>
-                </div>
-                <div className="card">
-                  <div className="s-label">Wake → ready</div>
-                  <div className="s-value">{avgReady ?? "—"}</div>
-                  <div className="s-sub">avg min, last 7d</div>
-                </div>
-                <div className="card">
-                  <div className="s-label">Skips</div>
-                  <div className="s-value">{skips14}</div>
-                  <div className="s-sub">steps skipped, 14d</div>
-                </div>
-                <div className="card">
-                  <div className="s-label">Neem cycle</div>
-                  <div className="s-value">{cycleDay !== null && cycleDay >= 1 ? cycleDay : "—"}</div>
-                  <div className="s-sub">day of {cycle?.length_days ?? 90}</div>
-                </div>
-              </div>
+                {tomorrowStr && (
+                  <Panel className="tonight" style={{ marginTop: 12 }}>
+                    <button
+                      type="button"
+                      className="tick"
+                      style={
+                        statusOf(tomorrowStr, "soak") === "done"
+                          ? { background: "var(--jv-gold)", borderColor: "var(--jv-gold)" }
+                          : undefined
+                      }
+                      onClick={() => toggleDone(tomorrowStr, "soak")}
+                      aria-label="Mark tomorrow's soak"
+                    >
+                      {statusOf(tomorrowStr, "soak") === "done" ? "✓" : ""}
+                    </button>
+                    <div className="t-body">
+                      <div className="t-name">Tonight — soak for tomorrow</div>
+                      <div className="t-spec">2 tsp sabja seeds in 1 litre water · leave overnight</div>
+                    </div>
+                    <button className="btn-primary" type="button" onClick={() => toggleDone(tomorrowStr, "soak")}>
+                      {statusOf(tomorrowStr, "soak") === "done" ? "Soaked ✓" : "Mark soaked"}
+                    </button>
+                  </Panel>
+                )}
 
-              <div className="charts-grid">
-                <div className="card chart-card">
-                  <h3>Wake to ready</h3>
-                  <LineChart
-                    days={d14}
-                    values={d14.map(readyMinutes)}
-                    target={TARGET_MIN}
-                    format={(v) => `${Math.round(v)}m`}
+                <Panel title="The 25-minute block" className="block-ref" style={{ marginTop: 12 }}>
+                  <div className="br-row"><div className="br-time">05:00</div><div>Wake</div></div>
+                  <div className="br-row"><div className="br-time">~05:02</div><div>Sabja water — drink the full litre</div></div>
+                  <div className="br-row"><div className="br-time">~05:08</div><div>Bowel movement</div></div>
+                  <div className="br-row"><div className="br-time">~05:18</div><div>Neem leaves, then garlic</div></div>
+                  <div className="br-row"><div className="br-time">05:25</div><div>Dressed and ready for training</div></div>
+                  <div className="muted" style={{ marginTop: 10 }}>
+                    Inner times are a guide. The only fixed targets are the 05:00 start and the 25-minute finish.
+                  </div>
+                </Panel>
+
+                <Panel style={{ marginTop: 12 }}>
+                  <div className="f-label">Quick tag · optional</div>
+                  <input
+                    type="text"
+                    maxLength={140}
+                    placeholder="how it went — one line (journaling stays on paper)"
+                    value={noteDraft}
+                    onChange={(e) => {
+                      noteTouched.current = true;
+                      setNoteDraft(e.target.value);
+                    }}
                   />
-                  <div className="legend-row">
-                    <span className="legend-item">
-                      <span className="legend-swatch" style={{ background: "var(--accent)" }} />
-                      Minutes
-                    </span>
-                    <span className="legend-item">
-                      <span className="legend-dash" />
-                      {TARGET_MIN}-min target
-                    </span>
+                  <div className="save-row">
+                    <button className="btn-primary" type="button" onClick={() => void saveNote()}>
+                      Save note
+                    </button>
+                    <span className="save-status font-mono">{savedAt ? `SAVED ${savedAt}` : ""}</span>
                   </div>
+                </Panel>
+              </>
+            )}
+
+            {!loading && tab === "progress" && (
+              <>
+                <div className="panel-head">
+                  <h2>Progress</h2>
+                  <div className="ph-sub">Last 14 days</div>
                 </div>
 
-                <div className="card chart-card">
-                  <h3>Wake time</h3>
-                  <LineChart
+                <div className="stat-grid">
+                  <Panel>
+                    <div className="s-label">Streak</div>
+                    <div className="s-value">{streak}</div>
+                    <div className="s-sub">full ritual days</div>
+                  </Panel>
+                  <Panel>
+                    <div className="s-label">Wake → ready</div>
+                    <div className="s-value">{avgReady ?? "—"}</div>
+                    <div className="s-sub">avg min, last 7d</div>
+                  </Panel>
+                  <Panel>
+                    <div className="s-label">Skips</div>
+                    <div className="s-value">{skips14}</div>
+                    <div className="s-sub">steps skipped, 14d</div>
+                  </Panel>
+                  <Panel>
+                    <div className="s-label">Neem cycle</div>
+                    <div className="s-value">{cycleDay !== null && cycleDay >= 1 ? cycleDay : "—"}</div>
+                    <div className="s-sub">day of {cycle?.length_days ?? 90}</div>
+                  </Panel>
+                </div>
+
+                <div className="charts-grid">
+                  <Panel title="Wake to ready" className="chart-card">
+                    <LineChart
+                      days={d14}
+                      values={d14.map(readyMinutes)}
+                      target={TARGET_MIN}
+                      format={(v) => `${Math.round(v)}m`}
+                    />
+                    <div className="legend-row">
+                      <span className="legend-item">
+                        <span className="legend-swatch" style={{ background: "var(--jv-cyan)" }} />
+                        Minutes
+                      </span>
+                      <span className="legend-item">
+                        <span className="legend-dash" />
+                        {TARGET_MIN}-min target
+                      </span>
+                    </div>
+                  </Panel>
+
+                  <Panel title="Wake time" className="chart-card">
+                    <LineChart
+                      days={d14}
+                      color="var(--jv-cyan-bright)"
+                      values={d14.map((ds) => {
+                        const t = ts(atOf(ds, "wake"));
+                        if (t === null) return null;
+                        const d = new Date(t);
+                        return d.getHours() * 60 + d.getMinutes();
+                      })}
+                      format={(v) => {
+                        const m = Math.round(v);
+                        return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+                      }}
+                    />
+                    <div className="legend-row">
+                      <span className="legend-item">
+                        <span className="legend-swatch" style={{ background: "var(--jv-cyan-bright)" }} />
+                        Clock time woken
+                      </span>
+                    </div>
+                  </Panel>
+                </div>
+
+                <Panel title="Step completion" style={{ marginTop: 12 }}>
+                  <StepGrid
                     days={d14}
-                    color="var(--series-1)"
-                    values={d14.map((ds) => {
-                      const t = ts(atOf(ds, "wake"));
-                      if (t === null) return null;
-                      const d = new Date(t);
-                      return d.getHours() * 60 + d.getMinutes();
-                    })}
-                    format={(v) => {
-                      const m = Math.round(v);
-                      return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+                    rows={catalog.filter((s) => s.kind === "ritual")}
+                    statusAt={(d, k) => statusOf(d, k)}
+                    detailAt={(d, k) => {
+                      const r = recOf(d, k);
+                      if (!r || r.status === "pending") return "not logged";
+                      if (r.status === "done") return r.happened_at ? `done ${fmtClock(r.happened_at)}` : "done · time missing";
+                      return r.reason ? `skipped — ${r.reason}` : "skipped";
                     }}
                   />
                   <div className="legend-row">
                     <span className="legend-item">
-                      <span className="legend-swatch" style={{ background: "var(--series-1)" }} />
-                      Clock time woken
+                      <span className="legend-swatch" style={{ background: "var(--jv-gold)" }} />
+                      Done
+                    </span>
+                    <span className="legend-item">
+                      <span className="legend-swatch" style={{ background: "rgba(255,184,77,0.14)", border: "1px solid var(--jv-gold)" }} />
+                      Skipped
+                    </span>
+                    <span className="legend-item">
+                      <span className="legend-swatch" style={{ background: "rgba(23,42,74,0.3)", border: "1px solid var(--jv-cyan-deep)" }} />
+                      Not logged
                     </span>
                   </div>
+                </Panel>
+              </>
+            )}
+
+            {!loading && tab === "history" && (
+              <>
+                <div className="panel-head">
+                  <h2>{parseDayStr(dayStr).toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
+                  <div className="ph-sub">{loggedDays.length ? `${loggedDays.length} days logged` : "Nothing logged yet"}</div>
                 </div>
-              </div>
 
-              <div className="card" style={{ marginTop: 12 }}>
-                <h3>Step completion</h3>
-                <StepGrid
-                  days={d14}
-                  rows={catalog.filter((s) => s.kind === "ritual")}
-                  statusAt={(d, k) => statusOf(d, k)}
-                  detailAt={(d, k) => {
-                    const r = recOf(d, k);
-                    if (!r || r.status === "pending") return "not logged";
-                    if (r.status === "done") return r.happened_at ? `done ${fmtClock(r.happened_at)}` : "done · time missing";
-                    return r.reason ? `skipped — ${r.reason}` : "skipped";
-                  }}
-                />
-                <div className="legend-row">
-                  <span className="legend-item">
-                    <span className="legend-swatch" style={{ background: "var(--accent)" }} />
-                    Done
-                  </span>
-                  <span className="legend-item">
-                    <span className="legend-swatch" style={{ background: "var(--warn-soft)", border: "1px solid var(--warn-line)" }} />
-                    Skipped
-                  </span>
-                  <span className="legend-item">
-                    <span className="legend-swatch" style={{ background: "var(--card-2)", border: "1px solid var(--card-ring)" }} />
-                    Not logged
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
+                <Panel className="cal-card">
+                  <MiniCalendar month={parseDayStr(dayStr)} today={dayStr} levelFor={levelFor} />
+                  <div className="cal-legend">
+                    <span>None</span>
+                    <i style={{ background: "rgba(23,42,74,0.3)", border: "1px solid var(--jv-cyan-deep)" }} />
+                    <i style={{ background: "rgba(34,211,238,0.14)" }} />
+                    <i style={{ background: "rgba(34,211,238,0.32)" }} />
+                    <i style={{ background: "var(--jv-gold)" }} />
+                    <span>Full</span>
+                  </div>
+                </Panel>
 
-          {!loading && tab === "history" && (
-            <>
-              <div className="panel-head">
-                <h2>{parseDayStr(dayStr).toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
-                <div className="ph-sub">{loggedDays.length ? `${loggedDays.length} days logged` : "Nothing logged yet"}</div>
-              </div>
-
-              <div className="card cal-card">
-                <MiniCalendar month={parseDayStr(dayStr)} today={dayStr} levelFor={levelFor} />
-                <div className="cal-legend">
-                  <span>None</span>
-                  <i style={{ background: "var(--card-2)", border: "1px solid var(--card-ring)" }} />
-                  <i style={{ background: "var(--cal-1)" }} />
-                  <i style={{ background: "var(--cal-2)" }} />
-                  <i style={{ background: "var(--cal-3)" }} />
-                  <span>Full</span>
-                </div>
-              </div>
-
-              <div className="card" style={{ marginTop: 12 }}>
-                <h3>Recent days</h3>
-                <div style={{ overflowX: "auto" }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Wake</th>
-                        <th className="num">Ready in</th>
-                        <th className="num">Done</th>
-                        <th className="num">Skipped</th>
-                        <th>Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loggedDays.length ? (
-                        loggedDays.map((ds) => {
-                          const dd = dueFor(ds);
-                          const dn = dd.filter((s) => statusOf(ds, s.step_key) === "done").length;
-                          const sk = countableFor(ds).filter((s) => statusOf(ds, s.step_key) === "skipped").length;
-                          const rm = readyMinutes(ds);
-                          return (
-                            <tr key={ds}>
-                              <td>{fmtDayHuman(parseDayStr(ds))}</td>
-                              <td>{atOf(ds, "wake") ? fmtClock(atOf(ds, "wake")) : "—"}</td>
-                              <td className="num">{rm !== null ? `${rm} min` : "—"}</td>
-                              <td className="num">{dd.length ? `${dn}/${dd.length}` : "—"}</td>
-                              <td className="num">{sk || "—"}</td>
-                              <td>{days[ds]?.note ?? ""}</td>
-                            </tr>
-                          );
-                        })
-                      ) : (
+                <Panel title="Recent days" style={{ marginTop: 12 }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table>
+                      <thead>
                         <tr>
-                          <td colSpan={6} className="chart-empty">
-                            No days logged yet
-                          </td>
+                          <th>Date</th>
+                          <th>Wake</th>
+                          <th className="num">Ready in</th>
+                          <th className="num">Done</th>
+                          <th className="num">Skipped</th>
+                          <th>Note</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
+                      </thead>
+                      <tbody>
+                        {loggedDays.length ? (
+                          loggedDays.map((ds) => {
+                            const dd = dueFor(ds);
+                            const dn = dd.filter((s) => statusOf(ds, s.step_key) === "done").length;
+                            const sk = countableFor(ds).filter((s) => statusOf(ds, s.step_key) === "skipped").length;
+                            const rm = readyMinutes(ds);
+                            return (
+                              <tr key={ds}>
+                                <td>{fmtDayHuman(parseDayStr(ds))}</td>
+                                <td>{atOf(ds, "wake") ? fmtClock(atOf(ds, "wake")) : "—"}</td>
+                                <td className="num">{rm !== null ? `${rm} min` : "—"}</td>
+                                <td className="num">{dd.length ? `${dn}/${dd.length}` : "—"}</td>
+                                <td className="num">{sk || "—"}</td>
+                                <td>{days[ds]?.note ?? ""}</td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="chart-empty">
+                              No days logged yet
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+              </>
+            )}
+          </main>
+        </div>
 
-      <nav className="tabbar" aria-label="Sections">
-        {(["today", "progress", "history"] as Tab[]).map((t) => (
-          <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-            {t[0].toUpperCase() + t.slice(1)}
+        <nav className="tabbar" aria-label="Sections">
+          {(["today", "progress", "history"] as Tab[]).map((t) => (
+            <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
+              {t[0].toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+          <button
+            className="tab-plus"
+            type="button"
+            title="Tick next step"
+            aria-label="Tick next step"
+            onClick={() => {
+              setTab("today");
+              const next = visibleSteps.find((s) => statusOf(dayStr, s.step_key) === "pending");
+              if (next) toggleDone(dayStr, next.step_key);
+            }}
+          >
+            +
           </button>
-        ))}
-        <button
-          className="tab-plus"
-          type="button"
-          title="Tick next step"
-          aria-label="Tick next step"
-          onClick={() => {
-            setTab("today");
-            const next = visibleSteps.find((s) => statusOf(dayStr, s.step_key) === "pending");
-            if (next) toggleDone(dayStr, next.step_key);
-          }}
-        >
-          +
-        </button>
-      </nav>
-    </div>
+        </nav>
+      </div>
+    </HudFrame>
   );
 }
